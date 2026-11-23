@@ -1,0 +1,14 @@
+{
+  "appId": "com.rubsongoldner.diaadia",
+  "appName": "Dia a Dia",
+  "webDir": "www",
+  "backgroundColor": "#0E1311",
+  "ios": {
+    "contentInset": "never",
+    "scheme": "Dia a Dia"
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "LocalNotifications": { "presentationOptions": ["banner", "sound", "list"] }
+  }
+}

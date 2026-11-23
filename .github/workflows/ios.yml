@@ -1,0 +1,25 @@
+# Compila o app de iPhone num Mac do GitHub para confirmar que o projeto está íntegro.
+# A instalação no iPhone continua sendo pelo Xcode do seu Mac (veja app-ios/LEIA-ME.md).
+name: Verificar app iOS
+on:
+  push:
+    paths: ['app-ios/**', 'index.html', '.github/workflows/ios.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: app-ios
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npm run web
+      - run: npx cap add ios
+      - run: npm run icones
+      - run: npx cap sync ios
+      - name: Compilar (sem assinatura)
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build | tail -40

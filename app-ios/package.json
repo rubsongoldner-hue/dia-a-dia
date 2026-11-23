@@ -1,0 +1,22 @@
+{
+  "name": "dia-a-dia-ios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App nativo do Dia a Dia para iPhone",
+  "scripts": {
+    "web": "mkdir -p www && cp ../index.html ../manifest.json ../icon-180.png ../icon-192.png ../icon-512.png www/",
+    "icones": "capacitor-assets generate --ios --iconBackgroundColor '#1E5A44' --splashBackgroundColor '#F2F4F0' --splashBackgroundColorDark '#0E1311'",
+    "sync": "npm run web && cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/local-notifications": "8.3.1",
+    "@capacitor/status-bar": "8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0",
+    "@capacitor/assets": "4.0.0"
+  }
+}

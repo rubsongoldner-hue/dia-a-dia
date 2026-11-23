@@ -746,7 +746,34 @@ async function syncReminders() {
 }
 // Com o app aberto, avisa também por aqui.
 let localTimers = [];
+// ---------- App nativo do iPhone (Capacitor) ----------
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const plugin = n => (NATIVE && window.Capacitor.Plugins ? window.Capacitor.Plugins[n] : null);
+const notifId = s => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return (Math.abs(h) % 2000000000) + 1; };
+let nativeT = 0;
+// No app nativo, os avisos são agendados no próprio iPhone: tocam com o app fechado e sem internet.
+function scheduleNative() {
+  clearTimeout(nativeT);
+  nativeT = setTimeout(async () => {
+    const LN = plugin('LocalNotifications'); if (!LN) return;
+    try {
+      const now = Date.now();
+      const list = reminderList().map(r => ({ r, at: r.s - r.alert * 60000 })).filter(x => x.at > now + 5000).sort((a, b) => a.at - b.at).slice(0, 60);
+      const pend = await LN.getPending();
+      if (pend.notifications.length) await LN.cancel({ notifications: pend.notifications.map(n => ({ id: n.id })) });
+      if (!list.length) return;
+      let perm = await LN.checkPermissions();
+      if (perm.display !== 'granted') perm = await LN.requestPermissions();
+      if (perm.display !== 'granted') return;
+      await LN.schedule({ notifications: list.map(({ r, at }) => {
+        const d = new Date(r.s);
+        return { id: notifId(r.id), title: r.t, body: `${pad(d.getHours())}:${pad(d.getMinutes())}${r.notes ? ' · ' + r.notes.split('\n')[0] : ''}`, schedule: { at: new Date(at), allowWhileIdle: true } };
+      }) });
+    } catch (e) {}
+  }, 800);
+}
 function scheduleLocal() {
+  if (NATIVE) { scheduleNative(); return; }
   localTimers.forEach(clearTimeout); localTimers = [];
   const now = Date.now();
   for (const r of reminderList()) {
@@ -1604,6 +1631,7 @@ function applyTheme() {
   if (t === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t);
   const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.setAttribute('content', dark ? '#0E1311' : '#F2F4F0'); m.removeAttribute('media'); });
+  plugin('StatusBar')?.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(() => {});
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (S && (S.ui.theme || 'auto') === 'auto') applyTheme(); });
 function render(anim) {
@@ -1839,7 +1867,12 @@ const laterTarget = src => src < today() ? today() : addDays(src, 1);
 // ---------- avisos e desfazer ----------
 // Vibração leve: Android usa vibrate; no iPhone (iOS 18+) o clique num interruptor nativo escondido gera o toque.
 const hapticEl = (() => { const l = document.createElement('label'); l.className = 'haptic'; l.setAttribute('aria-hidden', 'true'); l.innerHTML = '<input type="checkbox" switch tabindex="-1">'; document.body.appendChild(l); return l; })();
-function haptic() { try { if (navigator.vibrate) navigator.vibrate(10); else hapticEl.click(); } catch (e) {} }
+function haptic() {
+  try {
+    const h = plugin('Haptics'); if (h) { h.impact({ style: 'LIGHT' }).catch(() => {}); return; }
+    if (navigator.vibrate) navigator.vibrate(10); else hapticEl.click();
+  } catch (e) {}
+}
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function snap() { undoSnap = JSON.stringify(S); }
 function toast(msg, canUndo) {
