@@ -209,6 +209,8 @@ ul.items { list-style: none; margin: 0; padding: 4px 0; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; }
 .set-row + .set-row { border-top: 1px solid var(--line); }
 .set-row .lbl { min-width: 0; }
+.set-row:has(.seg) { flex-wrap: wrap; row-gap: 10px; }
+.set-row:has(.seg) .lbl { flex: 1 1 170px; }
 .set-row .lbl b { display: block; font-weight: 600; font-size: 15.5px; }
 .set-row .lbl small { color: var(--muted); font-size: 13px; }
 .switch { width: 50px; height: 30px; border-radius: 99px; background: var(--line); position: relative; flex: none; transition: background .2s; }
@@ -1174,6 +1176,8 @@ function renderHistorico() {
     </div>
     <div class="sec-head" id="sec-ajustes"><div><h2>Ajustes</h2></div></div>
     <div class="card settings">
+      <div class="set-row"><div class="lbl"><b>Aparência</b><small>Vale só para este aparelho.</small></div>
+        <div class="seg" role="radiogroup" aria-label="Aparência">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button role="radio" data-act="theme" data-v="${v}" aria-checked="${(S.ui.theme || 'auto') === v}">${l}</button>`).join('')}</div></div>
       <div class="set-row"><div class="lbl"><b>Layout</b><small>Como as tarefas aparecem.</small></div>
         <div class="seg" role="radiogroup" aria-label="Layout">${['lista', 'cartoes'].map(v => `<button role="radio" data-act="layout" data-v="${v}" aria-checked="${(S.settings.layout || 'lista') === v}">${v === 'lista' ? 'Lista' : 'Cartões'}</button>`).join('')}</div></div>
       <div class="set-row"><div class="lbl"><b>Levar pendências adiante</b><small>Tarefas avulsas não feitas passam para o dia seguinte.</small></div>
@@ -1593,7 +1597,15 @@ function renderPainel() {
     <nav class="jump">${[['rotinas', 'Rotinas'], ['historico', 'Histórico'], ['ajustes', 'Ajustes']].map(([k, l]) => `<button data-act="jump" data-to="${k}">${l}</button>`).join('')}</nav>
     ${renderRotinas()}${renderHistorico()}`;
 }
-function applyLayout() { document.body.classList.toggle('lay-cards', S.settings.layout === 'cartoes'); }
+function applyLayout() { document.body.classList.toggle('lay-cards', S.settings.layout === 'cartoes'); applyTheme(); }
+// Claro, escuro ou seguindo o sistema; a cor da barra do iPhone acompanha.
+function applyTheme() {
+  const t = S.ui.theme || 'auto', root = document.documentElement;
+  if (t === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t);
+  const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.setAttribute('content', dark ? '#0E1311' : '#F2F4F0'); m.removeAttribute('media'); });
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (S && (S.ui.theme || 'auto') === 'auto') applyTheme(); });
 function render(anim) {
   const v = $('#view');
   v.innerHTML = tab === 'hoje' ? renderHoje() : tab === 'pessoal' ? renderPessoal() : renderPainel();
@@ -1948,6 +1960,7 @@ const actions = {
 
   cal(b) { const d = parse(calMonth); d.setMonth(d.getMonth() + +b.dataset.n); calMonth = key(d); render(); },
   layout(b) { S.settings.layout = b.dataset.v; save(); applyLayout(); render(); },
+  theme(b) { S.ui.theme = b.dataset.v; write(); applyTheme(); render(); },
   carry() { S.settings.carry = !S.settings.carry; save(); render(); },
   async export() {
     const json = JSON.stringify({ app: 'dia-a-dia', v: 1, exportado: new Date().toISOString(), dados: S }, null, 1);
